@@ -36,8 +36,7 @@ class TestEchoService(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls._server._serving = False  # break out of server loop. pylint: disable=protected-access
-        cls._server_thread.join()  # wait for server thread to terminate
-
+        cls._server_thread.join()  # wait for server thread to terminate   
 
 if __name__ == '__main__':
     unittest.main()

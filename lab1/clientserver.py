@@ -16,6 +16,7 @@ class Server:
     """ The server """
     _logger = logging.getLogger("vs2lab.lab1.clientserver.Server")
     _serving = True
+    _tel = {'Alice': 4098, 'Bob': 4139}
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,9 +34,22 @@ class Server:
                 (connection, address) = self.sock.accept()  # returns new socket and address of client
                 while True:  # forever
                     data = connection.recv(1024)  # receive data from client
+
                     if not data:
                         break  # stop if client stopped
-                    connection.send(data + "*".encode('ascii'))  # return sent data plus an "*"
+
+                    msg = data.decode('ascii')
+                    if msg.startswith("get-") and msg.split("-")[1] in self._tel:
+                        name = msg.split("-")[1]
+                        self._logger.info("Server send self._tel data to client.")
+                        connection.send(str(self._tel[name]).encode('ascii'))
+                    elif msg == "getAll":
+                        self._logger.info("Server send all tel data to client.")
+                        connection.send(str(self._tel.items()).encode('ascii'))
+                    else:
+                        self._logger.info("Server send no data.")
+                        connection.send(str("ERROR: no data found").encode('ascii'))
+
                 connection.close()  # close the connection
             except socket.timeout:
                 pass  # ignore timeouts
@@ -61,6 +75,35 @@ class Client:
         self.sock.close()  # close the connection
         self.logger.info("Client down.")
         return msg_out
+    
+    def get(self, name):
+        self.logger.info(f"get called with {name}")
+        
+        self.sock.send(str("get-" + name).encode('ascii'))
+        data = self.sock.recv(1024)
+        msg = data.decode('ascii')
+
+        self.logger.info(f"{msg}")
+        print(f"{msg}")
+
+        self.logger.info("Client down.")
+        self.sock.close()
+        return msg
+    
+    def getAll(self):
+        self.logger.info("getAll called")
+        
+        self.sock.send("getAll".encode('ascii'))
+        data = self.sock.recv(1024)
+        msg = data.decode('ascii')
+
+        self.logger.info(f"{msg}")
+        print(f"{msg}")
+
+        self.logger.info("Client down.")
+        self.sock.close()
+        return msg
+
 
     def close(self):
         """ Close socket """
