@@ -20,5 +20,8 @@ logger.info("Append 2: '{}'".format(str(ret)))
 ret = dblist.append(4)  # and append two elements
 logger.info("Append 4: '{}'".format(str(ret)))
 
+ret = dblist.append("Hello World")  # and append two elements
+logger.info("Append Hello World: '{}'".format(str(ret)))
+
 ret = dblist.value()  # Print the result
 logger.info("Stored value: '{}'".format(str(ret)))
