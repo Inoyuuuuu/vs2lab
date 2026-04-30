@@ -1,7 +1,6 @@
 import rpc
 import logging
-import threading
-import constRPC
+import time
 
 from context import lab_logging
 
@@ -11,22 +10,23 @@ cl = rpc.Client()
 cl.run()
 
 def process_response(response):
-    if response == constRPC.OK:
-        print("ACK Received")
-    else:
-        try:
-            print("Result: {}".format(response.value))
-        except:
-            print("Error occured while trying to process the server response.")
-
-def append(data, db_list):
-    cl.append(data, db_list, process_response)
+    try:
+        print("Result: {}".format(response.value))
+    except:
+        print("Error occured while trying to process the server response.")    
 
 base_list = rpc.DBList({'foo'})
 data = 'bar'
-t_receive = threading.Thread(target=append, args=(data, base_list))
-t_receive.start()
 
-print("Doing other stuff while waiting for server answerr.")
+cl.append(data, base_list, process_response)
 
-#cl.stop()
+print("Doing other stuff while waiting for server answer.")
+time.sleep(3)
+print("Doing stuff...")
+time.sleep(3)
+print("Still doing stuff...")
+time.sleep(3)
+print("STILL DOING STUFF...")
+time.sleep(3)
+
+cl.stop()

@@ -1,4 +1,6 @@
 import constRPC
+import threading
+import time
 
 from context import lab_channel
 
@@ -27,12 +29,18 @@ class Client:
 
     def append(self, data, db_list, process_response):
         assert isinstance(db_list, DBList)
+
         msglst = (constRPC.APPEND, data, db_list)  # message payload
         self.chan.send_to(self.server, msglst)  # send msg to server
-        
+
         msgrcv = self.chan.receive_from(self.server)  # wait for ack response
-        process_response(msgrcv[1])
         
+        if msgrcv[1] == constRPC.ACK:
+            print("ACK received")
+            t_receive = threading.Thread(target=self.sendToServer, args=(process_response,))
+            t_receive.start()
+
+    def sendToServer(self, process_response):
         msgrcv = self.chan.receive_from(self.server) # wait for actual response
         process_response(msgrcv[1])
 
@@ -56,7 +64,9 @@ class Server:
                 
                 client = msgreq[0] # see who is the caller
                 
-                self.chan.send_to({client}, constRPC.OK) #replaces the ACK? idk. constRPC.OK is never used anywhere else, so might aswell..
+                self.chan.send_to({client}, constRPC.ACK)
+
+                time.sleep(10)
 
                 msgrpc = msgreq[1]  # fetch call & parameters
                 if constRPC.APPEND == msgrpc[0]:  # check what is being requested
