@@ -22,7 +22,7 @@
 3. Worker empfängt Nachrichten auf beiden Ports (über Socket), erkennbar über output von source ID 1 und 2
 4. Worker "arbeitet" sequentiell Nachrichten beider sources ab
 
-##### Ablauf 1. Experiment
+##### Ablauf 2. Experiment
 1. Eine sources, zwei worker mit ID 1 und 2
 2. Source schickt auf einem Port workloads (über Socket)
 3. Worker 1 und 2 empfangen Nachrichten auf einem Port (über Socket), der andere ist inaktiv
