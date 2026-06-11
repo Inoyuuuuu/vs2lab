@@ -35,7 +35,6 @@ class DummyChordClient:
 
         random_1 = random.randint(1, len(nodes) - 1)
         random_2 = random.randint(1, len(nodes) - 1)
-
         start_node = nodes[random_1].decode()
         lookup_id = random_2 #nodes[random_2].decode()
         
