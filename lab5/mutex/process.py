@@ -2,7 +2,7 @@ import logging
 import random
 import time
 
-from constMutex import ENTER, RELEASE, ALLOW, ACTIVE
+from constMutex import ENTER, RELEASE, ALLOW, ACTIVE, DEAD
 
 
 class Process:
@@ -41,8 +41,11 @@ class Process:
         self.process_id = self.channel.join('proc')  # Find out who you are
         self.all_processes: list = []  # All procs in the proc group
         self.other_processes: list = []  # Needed to multicast to others
+        self.last_received_times: dict = {}
+        self.processes_with_later_message: set = []
         self.queue = []  # The request queue list
         self.clock = 0  # The current logical clock
+        self.request_start_time = 0
         self.peer_name = 'unassigned'  # The original peer name
         self.peer_type = 'unassigned'  # A flag indicating behavior pattern
         self.logger = logging.getLogger("vs2lab.lab5.mutex.process.Process")
@@ -65,6 +68,7 @@ class Process:
 
     def __request_to_enter(self):
         self.clock = self.clock + 1  # Increment clock value
+        self.request_start_time = time.time()
         request_msg = (self.clock, self.process_id, ENTER)
         self.queue.append(request_msg)  # Append request to queue
         self.__cleanup_queue()  # Sort the queue
@@ -89,27 +93,31 @@ class Process:
 
     def __allowed_to_enter(self):
         # See who has sent a message (the set will hold at most one element per sender)
-        processes_with_later_message = set([req[1] for req in self.queue[1:]])
+        self.processes_with_later_message = set([req[1] for req in self.queue[1:]])
         # Access granted if this process is first in queue and all others have answered (logically) later
         first_in_queue = self.queue[0][1] == self.process_id
         all_have_answered = len(self.other_processes) == len(
-            processes_with_later_message)
+            self.processes_with_later_message)
         return first_in_queue and all_have_answered
 
     def __receive(self):
+
         # Pick up any message
         _receive = self.channel.receive_from(self.other_processes, 3)
         if _receive:
-            msg = _receive[1]
+            msg = _receive[1] #Message Format: <Message>: (Timestamp, Process_ID, <Request_Type>) und <Request Type>: ENTER | ALLOW  | RELEASE
 
             self.clock = max(self.clock, msg[0])  # Adjust clock value...
             self.clock = self.clock + 1  # ...and increment
 
+            self.last_received_times[msg[1]] = int(time.time())
+                    
             self.logger.debug("{} received {} from {}.".format(
                 self.__mapid(),
                 "ENTER" if msg[2] == ENTER
                 else "ALLOW" if msg[2] == ALLOW
                 else "RELEASE", self.__mapid(msg[1])))
+
 
             if msg[2] == ENTER:
                 self.queue.append(msg)  # Append an ENTER request
@@ -141,6 +149,9 @@ class Process:
         self.other_processes = list(self.channel.subgroup('proc'))
         self.other_processes.remove(self.process_id)
 
+        for process_id in self.other_processes:
+            self.last_received_times[process_id] = time.time()
+
         self.peer_name = peer_name  # assign peer name
         self.peer_type = peer_type  # assign peer behavior
 
@@ -148,6 +159,7 @@ class Process:
             peer_name, self.__mapid()))
 
     def run(self):
+        counter = 0
         while True:
             # Enter the critical section if
             # 1) there are more than one process left and
@@ -161,7 +173,16 @@ class Process:
 
                 self.__request_to_enter()
                 while not self.__allowed_to_enter():
-                    self.__receive()
+                    if time.time() - self.request_start_time < 10:
+                        self.__receive()
+                    else:
+                        dead = []
+                        for p in self.other_processes:
+                            if p not in self.processes_with_later_message:
+                                print(f"{self.process_id} - rm {p}")
+                                dead.append(p)
+                        for p in dead:
+                            self.other_processes.remove(p)
 
                 # Stay in CS for some time ...
                 sleep_time = random.randint(0, 2000)
