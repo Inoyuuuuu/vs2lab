@@ -85,8 +85,7 @@ if __name__ == "__main__":  # if script is started from command line
     proc_to_crash.terminate()
     proc_to_crash.join()
 
-    logger.warning("Process {} with process_id {} of type {} has crashed.".format(
-        proc_to_crash.name, proc_id, type_to_crash))
+    logger.warning("Process {} of type {} has crashed.".format(proc_to_crash.name, type_to_crash))
 
     # wait for peer procs to finish
     for peer_proc in children:
