@@ -31,6 +31,7 @@ class Participant:
         self.logger = logging.getLogger("vs2lab.lab6.3pc.Participant")
         self.coordinator = {}
         self.all_participants = {}
+        self.other_participants = []
         self.is_coordinator = False
         self.state = 'NEW'
 
@@ -57,6 +58,9 @@ class Participant:
         self.channel.bind(self.participant)
         self.coordinator = self.channel.subgroup('coordinator')
         self.all_participants = self.channel.subgroup('participant')
+        self.other_participants = list(self.all_participants)
+        self.other_participants.remove(self.participant)
+        self.logger.info(f"Participants {self.participant} other p {self.other_participants}")
         #-------- INIT --------
         self._enter_state(INIT)  # Start in local INIT state.
 
@@ -93,26 +97,40 @@ class Participant:
 
         # Wait for coordinator to notify the final outcome
         msg = self.channel.receive_from(self.coordinator, TIMEOUT)
-        
+        self.logger.info(f"1 reached by Participant {self.participant}")
+
         if not msg:  # Crashed coordinator
 
             # Ask all processes for their ids
-            self.channel.send_to(self.all_participants, (NEED_NEW_C, self.participant))
+            self.channel.send_to(self.other_participants, NEED_NEW_C)
             p_ids = []
             p_timeouts = 0
-            
-            while len(self.all_participants) > p_timeouts + len(p_ids):
-                msg = self.channel.receive_from(self.all_participants, TIMEOUT)
+            self.logger.info(f"2 reached by Participant {self.participant}")
+
+            while len(self.other_participants) > p_timeouts + len(p_ids):
+                msg = self.channel.receive_from(self.other_participants, TIMEOUT)
 
                 if not msg:
                     p_timeouts += 1
                 elif msg[1] == NEED_NEW_C:
-                    p_ids.append(msg[1][1])
+                    self.logger.info(f"Participant {self.participant} received msg {msg} from {msg[0]} with req {msg[1]}, timeouts {p_timeouts}, p_ids {p_ids}")
+
+                    p_ids.append(msg[0])
+                    self.logger.info(f"Participant {self.participant} added {msg[0]} to their ids")
                 else:
+                    self.logger.info(f"early return 1 - - - Participant {self.participant} received msg {msg} from {msg[0]} with req {msg[1]}, timeouts {p_timeouts}, p_ids {p_ids}")
                     return
             
-            if p_ids.sort()[0] == self.participant:
-                self.coordinator_init()
+            if len(p_ids) == 0:
+                self.logger.info(f"early return 2 - - - Participant {self.participant} only received timeouts")
+                return
+                
+            self.logger.info(f"3 reached by Participant {self.participant}, pids {p_ids}")
+            p_ids.append(self.participant)
+            p_ids.sort()
+
+            if p_ids[0] == self.participant:
+                self.coordinator_init(self.channel)
                 self.channel.send_to(self.all_participants, (NEW_C, self.participant))
                 self.logger.info("Participant {} (me) is new C.".format(self.participant))
             else:
@@ -126,6 +144,7 @@ class Participant:
         if not self.is_coordinator:
             decision = msg[1]
 
+            self.logger.info(f"4 reached by Participant {self.participant}, dec is {decision}")
             if decision != PREPARE_COMMIT:
                 assert decision in [GLOBAL_ABORT, LOCAL_ABORT] #TODO: Local abort nur, wenn vorher mit nahcbarn kommuniziert, aka. c crash verhalten implementiert
                 self._enter_state(ABORT)
